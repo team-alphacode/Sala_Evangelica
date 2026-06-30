@@ -534,7 +534,7 @@ export default function App() {
             {role === 'juez' && (
                 <section className="screen" style={{ flexDirection: 'column', alignItems: 'center', background: 'var(--dark-bg)', overflowY: 'auto', padding: '20px' }}>
                     <div className="particles"></div>
-                    <img src="/public/logo.png" alt="Logo" style={{width: '80px', height: '80px', borderRadius: '50%', marginBottom: '15px', zIndex: 10}} />
+                    <img src="/logo.png" alt="Logo" style={{width: '80px', height: '80px', borderRadius: '50%', marginBottom: '15px', zIndex: 10}} />
                     
                     <div style={{background: 'rgba(0, 43, 85, 0.6)', padding: '25px', borderRadius: '15px', backdropFilter: 'blur(10px)', zIndex: 10, width: '100%', maxWidth: '500px', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 10px 30px rgba(0,0,0,0.5)'}}>
                         {juezSubmitted ? (
@@ -617,7 +617,7 @@ export default function App() {
                     {screen === 'lider-login' && (
                         <section className="screen" style={{ flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'var(--dark-bg)' }}>
                             <div className="particles"></div>
-                            <img src="/public/logo.png" alt="Logo" style={{width: '100px', height: '100px', borderRadius: '50%', marginBottom: '15px', zIndex: 10}} />
+                            <img src="/logo.png" alt="Logo" style={{width: '100px', height: '100px', borderRadius: '50%', marginBottom: '15px', zIndex: 10}} />
                             <h1 className="main-title" style={{fontSize: '2.5rem', textAlign: 'center'}}>Acceso a Líderes</h1>
                             
                             <div style={{background: 'rgba(0, 43, 85, 0.6)', padding: '30px', borderRadius: '15px', backdropFilter: 'blur(10px)', zIndex: 10, width: '90%', maxWidth: '400px', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 10px 30px rgba(0,0,0,0.5)'}}>
@@ -652,7 +652,7 @@ export default function App() {
                         return (
                             <section className="screen" style={{ flexDirection: 'column', alignItems: 'center', background: 'var(--dark-bg)', padding: '30px 20px' }}>
                                 <div className="particles"></div>
-                                <img src="/public/logo.png" alt="Watermark" className="watermark-logo" style={{opacity: 0.05}} />
+                                <img src="/logo.png" alt="Watermark" className="watermark-logo" style={{opacity: 0.05}} />
 
                                 <div style={{display: 'flex', alignItems: 'center', gap: '15px', zIndex: 10, marginBottom: '40px', background: 'rgba(0,0,0,0.5)', padding: '10px 20px', borderRadius: '30px', border: `1px solid ${colorMap[liderLogueado.equipo]}`}}>
                                     <img src={liderLogueado.fotoUrl} style={{width: '50px', height: '50px', borderRadius: '50%', border: `2px solid ${colorMap[liderLogueado.equipo]}`}} alt="" />
@@ -886,7 +886,7 @@ export default function App() {
                 <section className="screen" id="welcome-screen" style={{ flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'var(--dark-bg)', textAlign: 'center' }}>
                     <div className="particles"></div>
                     <div className="hero-content">
-                        <div className="logo-container"><img src="/public/logo.png" alt="Logo" className="logo-img" /></div>
+                        <div className="logo-container"><img src="/logo.png" alt="Logo" className="logo-img" /></div>
                         <div className="verse-box"><span>{verseText}</span><span className="cursor"></span></div>
                         <div style={{ marginTop: '10px' }}><h1 className="main-title">Mini Campamento<br /><span style={{ color: 'var(--accent)' }}>2026</span></h1></div>
                         
@@ -913,7 +913,7 @@ export default function App() {
             {screen === 'menu' && role === 'control' && (
                 <section className="screen inner-screen">
                     <div className="particles"></div>
-                    <img src="/public/logo.png" alt="Watermark" className="watermark-logo" />
+                    <img src="/logo.png" alt="Watermark" className="watermark-logo" />
                     <div className="modern-header">
                         <div className="header-row">
                             <button className="glass-btn" onClick={() => setScreen('welcome')}><i className="fas fa-arrow-left"></i> Inicio</button>
@@ -965,11 +965,11 @@ export default function App() {
                     </div>
 
                     <div className="camp-main-content">
-                        <img src="/public/logo.png" alt="Watermark" className="watermark-logo" style={{opacity: 0.03}} />
+                        <img src="/logo.png" alt="Watermark" className="watermark-logo" style={{opacity: 0.03}} />
                         
                         {activeCampModule === 'dashboard' && (
                             <div className="camp-dashboard-view">
-                                <img src="/public/logo.png" alt="Logo Campamento" className="camp-dashboard-logo" />
+                                <img src="/logo.png" alt="Logo Campamento" className="camp-dashboard-logo" />
                                 <h1 className="main-title" style={{fontSize: '3rem', margin: 0}}>Gestor de Campamento</h1>
                             </div>
                         )}
