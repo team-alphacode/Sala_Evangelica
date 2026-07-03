@@ -169,13 +169,31 @@ export default function App() {
     const showToast = (msg) => { setToastMsg(msg); setTimeout(() => setToastMsg(''), 3500); };
     const openLinkModal = (url, title) => { setModalUrl(url); setModalTitle(title); setShowLinkModal(true); };
 
-    // ==========================================
-    // INICIO: DETECCIÓN DE URL (?modo=lider | ?modo=juez)
+   // ==========================================
+    // INICIO: DETECCIÓN DE URL Y RECUPERACIÓN DE SESIÓN
     // ==========================================
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
-        if (params.get('modo') === 'lider') { setRole('lider'); setRoleStep('ready'); setScreen('lider-login'); } 
-        else if (params.get('modo') === 'juez') { setRole('juez'); setRoleStep('ready'); setScreen('juez-coro'); }
+        const savedSession = localStorage.getItem('hymnSession');
+
+        if (params.get('modo') === 'lider') { 
+            setRole('lider'); setRoleStep('ready'); setScreen('lider-login'); 
+        } else if (params.get('modo') === 'juez') { 
+            setRole('juez'); setRoleStep('ready'); setScreen('juez-coro'); 
+        } else if (savedSession) {
+            // Restaurar la sesión si se recargó la página accidentalmente
+            try {
+                const { code, savedRole } = JSON.parse(savedSession);
+                if (code && savedRole) {
+                    setSessionCode(code);
+                    setRole(savedRole);
+                    setRoleStep('ready');
+                    setScreen('welcome');
+                }
+            } catch (e) {
+                console.error("Error al restaurar sesión:", e);
+            }
+        }
     }, []);
 
     // ==========================================
@@ -507,23 +525,54 @@ export default function App() {
         } catch (error) { console.error(error); showToast("Error crítico: Verifique sus credenciales."); } finally { setIsWiping(false); }
     };
 
-    // ==========================================
-    // 9. FUNCIONES DEL HIMNARIO Y PROYECTOR
+        // ==========================================
+    // 9. FUNCIONES DEL HIMNARIO Y PROYECTOR (CONEXIÓN PERMANENTE)
     // ==========================================
     const handleConnect = async () => {
-        if (pinInput.length !== 4) return showToast("El código debe tener 4 dígitos.");
+        if (pinInput.length !== 4 || !/^[0-9]+$/.test(pinInput)) return showToast("El código debe tener 4 dígitos.");
         setSessionCode(pinInput);
+        
+        // Guardar en la memoria del navegador para sobrevivir a las recargas
+        localStorage.setItem('hymnSession', JSON.stringify({ code: pinInput, savedRole: role }));
+
         if (role === 'control') {
-            await setDoc(doc(db, "sesiones", pinInput), { modo: 'standby', himnoId: null, slideIndex: 0, fontSize: 2.5, proyectorConectado: false, subastaLoteId: null, timerTarget: null });
+            const docRef = doc(db, "sesiones", pinInput);
+            const docSnap = await getDoc(docRef);
+            
+            if (!docSnap.exists()) {
+                // Sala nueva
+                await setDoc(docRef, { modo: 'standby', himnoId: null, slideIndex: 0, fontSize: 2.5, proyectorConectado: false, subastaLoteId: null, timerTarget: null });
+            } else {
+                // Si el control se reconecta, usamos merge: true para no desconectar al proyector
+                await setDoc(docRef, { modo: 'standby' }, { merge: true });
+            }
             setRoleStep('ready'); setScreen('welcome');
         } else if (role === 'proyector') {
             const docSnap = await getDoc(doc(db, "sesiones", pinInput));
             if (docSnap.exists()) {
                 await setDoc(doc(db, "sesiones", pinInput), { proyectorConectado: true }, { merge: true });
                 setRoleStep('ready'); setScreen('welcome');
-            } else { showToast("⚠️ Sala no encontrada. Conecta el Control primero."); setPinInput(''); }
+            } else { 
+                showToast("⚠️ Sala no encontrada. Conecta el Control primero."); 
+                setPinInput(''); 
+                localStorage.removeItem('hymnSession'); // Limpiar si falló
+            }
         }
     };
+
+    // NUEVA FUNCIÓN: Salir de la sala voluntariamente
+    const handleDisconnect = async () => {
+        if (role === 'proyector' && sessionCode) {
+            await setDoc(doc(db, "sesiones", sessionCode), { proyectorConectado: false }, { merge: true });
+        }
+        localStorage.removeItem('hymnSession');
+        setSessionCode('');
+        setRole(null);
+        setRoleStep('select');
+        setScreen('welcome');
+        setPinInput('');
+        showToast("Desconectado de la sala exitosamente.");
+    };  
 
     const emitirAProyector = async (modo, himnoId, index) => { if (role === 'control' && sessionCode) await setDoc(doc(db, "sesiones", sessionCode), { modo, himnoId, slideIndex: index }, { merge: true }); };
     const cambiarTamanoLetra = async (cambio, e) => { if (e) e.stopPropagation(); let nuevoTamano = Math.min(Math.max(fontSize + cambio, 1.5), 6.0); setFontSize(nuevoTamano); if (role === 'control' && sessionCode) await setDoc(doc(db, "sesiones", sessionCode), { fontSize: nuevoTamano }, { merge: true }); };
@@ -1089,6 +1138,20 @@ export default function App() {
                                 <div style={{ display: 'flex', gap: '15px', marginTop: '20px', flexWrap: 'wrap', justifyContent: 'center' }}>
                                     <button className="btn-start" onClick={() => setScreen('menu')}><i className="fas fa-music"></i> Himnario</button>
                                     <button className="btn-start" onClick={() => isAdminLogged ? setScreen('camp-admin') : setScreen('admin-login')}><i className="fas fa-campground"></i> Campamento</button>
+                                    
+                                    {/* BOTÓN PARA CERRAR SESIÓN DEL CONTROL */}
+                                    <div style={{width: '100%', display: 'flex', justifyContent: 'center', marginTop: '15px'}}>
+                                        <button className="glass-btn" onClick={handleDisconnect} style={{color: '#e74c3c', borderColor: '#e74c3c'}}>
+                                            <i className="fas fa-sign-out-alt"></i> Salir de la Sala
+                                        </button>
+                                    </div>
+                                </div>
+                            ) : role === 'proyector' ? (
+                                <div style={{ display: 'flex', gap: '15px', marginTop: '20px', flexWrap: 'wrap', justifyContent: 'center' }}>
+                                    {/* BOTÓN PARA CERRAR SESIÓN DEL PROYECTOR */}
+                                    <button className="glass-btn" onClick={handleDisconnect} style={{color: '#e74c3c', borderColor: '#e74c3c', padding: '10px 20px', fontSize: '1rem'}}>
+                                        <i className="fas fa-sign-out-alt"></i> Desconectar Proyector
+                                    </button>
                                 </div>
                             ) : null}
                         </div>
@@ -1154,7 +1217,8 @@ export default function App() {
                             <div className="status-led-container"><span className={`led-dot ${proyectorConectado ? 'led-on' : 'led-off'}`}></span><span className="status-text">{proyectorConectado ? "LIVE" : "OFF"}</span></div>
                         </div>
                         <div className="search-container">
-                            <i className="fas fa-search search-icon"></i><input type="text" id="searchInput" placeholder="Buscar número o título..." onKeyDown={handleSearch} />
+                            <i className="fas fa-search search-icon"></i>
+                            <input type="text" inputMode="numeric" id="searchInput" placeholder="Buscar número o título..." onKeyDown={handleSearch} />
                             <button className="search-btn-inside" onClick={handleSearch}>Buscar</button>
                         </div>
                         <div className="book-tabs">
