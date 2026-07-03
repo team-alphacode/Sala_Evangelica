@@ -878,75 +878,82 @@ export default function App() {
                     })()}
 
                     {/* REGISTRO POR LOTES DEL LÍDER */}
-                    {screen === 'lider-registro' && liderLogueado && (
-                        <section className="screen" style={{ flexDirection: 'column', alignItems: 'center', background: 'var(--dark-bg)', overflowY: 'auto', padding: '20px' }}>
-                            <div className="particles"></div>
-                            
-                            <div style={{display: 'flex', width: '100%', maxWidth: '400px', justifyContent: 'space-between', zIndex: 10, marginBottom: '20px'}}>
-                                <button className="glass-btn" onClick={() => setScreen('lider-dashboard')}><i className="fas fa-arrow-left"></i> Volver</button>
-                                <h2 style={{color: colorMap[liderLogueado.equipo], margin: 0, textTransform: 'uppercase'}}>Equipo {liderLogueado.equipo}</h2>
-                            </div>
+{screen === 'lider-registro' && liderLogueado && (
+    <section className="screen" style={{ flexDirection: 'column', alignItems: 'center', background: 'var(--dark-bg)', overflowY: 'auto', padding: '20px', paddingBottom: '120px' }}>
+        <div className="particles"></div>
+        
+        <div style={{display: 'flex', width: '100%', maxWidth: '400px', justifyContent: 'space-between', zIndex: 10, marginBottom: '20px', flexShrink: 0}}>
+            <button className="glass-btn" onClick={() => setScreen('lider-dashboard')}><i className="fas fa-arrow-left"></i> Volver</button>
+            <h2 style={{color: colorMap[liderLogueado.equipo], margin: 0, textTransform: 'uppercase'}}>Equipo {liderLogueado.equipo}</h2>
+        </div>
 
-                            <form onSubmit={agregarAListaLocal} style={{display: 'flex', flexDirection: 'column', gap: '15px', width: '100%', maxWidth: '400px', zIndex: 10, background: 'rgba(255,255,255,0.05)', padding: '20px', borderRadius: '15px', borderTop: `4px solid ${colorMap[liderLogueado.equipo]}`, backdropFilter: 'blur(10px)'}}>
-                                <h3 style={{margin: 0, color: 'white', textAlign: 'center'}}>Añadir a la lista</h3>
-                                
-                                {showCamera ? (
-                                    <div className="camera-container">
-                                        <video ref={videoRef} autoPlay playsInline className="camera-video" />
-                                        <div className="camera-action-btns">
-                                            <button type="button" className="btn-start" style={{margin: 0, padding: '8px 15px'}} onClick={capturePhoto}><i className="fas fa-camera"></i> Tomar</button>
-                                            <button type="button" className="glass-btn" onClick={stopCamera}>Cancelar</button>
-                                        </div>
-                                        <canvas ref={canvasRef} style={{display: 'none'}} />
-                                    </div>
-                                ) : (
-                                    <div style={{display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px'}}>
-                                        {camperFotoPreview ? (
-                                            <img src={camperFotoPreview} alt="Preview" style={{width: '100px', height: '100px', objectFit: 'cover', borderRadius: '50%', border: `3px solid ${colorMap[liderLogueado.equipo]}`}} />
-                                        ) : (
-                                            <div style={{width: '100px', height: '100px', borderRadius: '50%', border: '2px dashed gray', display: 'flex', alignItems: 'center', justifyContent: 'center'}}><i className="fas fa-user" style={{fontSize: '2rem', color: 'gray'}}></i></div>
-                                        )}
-                                        
-                                        <div className="camera-action-btns">
-                                            <button type="button" className="glass-btn" onClick={startCamera}><i className="fas fa-camera"></i> Cámara</button>
-                                            <label className="glass-btn" style={{cursor: 'pointer', margin: 0}}>
-                                                <i className="fas fa-upload"></i> Subir
-                                                <input type="file" accept="image/*" style={{display: 'none'}} onChange={(e) => { if(e.target.files[0]) { setCamperFotoObj(e.target.files[0]); setCamperFotoPreview(URL.createObjectURL(e.target.files[0])); } }} />
-                                            </label>
-                                        </div>
-                                    </div>
-                                )}
-
-                                <div style={{display: 'flex', gap: '10px'}}>
-                                    <input type="number" placeholder="N°" value={camperNum} onChange={(e) => setCamperNum(e.target.value)} style={{flex: '1', padding: '12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(0,0,0,0.5)', color: 'white', outline: 'none'}} />
-                                    <input type="number" placeholder="Edad" value={camperEdad} onChange={(e) => setCamperEdad(e.target.value)} style={{flex: '2', padding: '12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(0,0,0,0.5)', color: 'white', outline: 'none'}} />
-                                </div>
-                                <input type="text" placeholder="Nombre y Apellidos" value={camperNombre} onChange={(e) => setCamperNombre(e.target.value)} style={{padding: '12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(0,0,0,0.5)', color: 'white', outline: 'none'}} />
-                                
-                                <button type="submit" className="glass-btn" style={{borderColor: 'var(--accent)', color: 'var(--accent)'}}>
-                                    <i className="fas fa-plus"></i> Añadir a la lista
-                                </button>
-                            </form>
-
-                            {localCampers.length > 0 && (
-                                <div style={{width: '100%', maxWidth: '400px', zIndex: 10, marginTop: '20px'}}>
-                                    <h3 style={{color: 'white', textAlign: 'center'}}>Lista Pendiente ({localCampers.length})</h3>
-                                    {localCampers.map((c, i) => (
-                                        <div key={i} className="local-camper-item">
-                                            <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
-                                                <img src={c.fotoPreview} style={{width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover'}} alt="" />
-                                                <div><div style={{color: 'white', fontWeight: 'bold'}}>#{c.numero} {c.nombre}</div><div style={{color: 'gray', fontSize: '0.8rem'}}>{c.edad} años</div></div>
-                                            </div>
-                                            <button className="glass-btn" style={{padding: '5px 10px', color: '#e74c3c', borderColor: 'transparent'}} onClick={() => setLocalCampers(localCampers.filter((_, index) => index !== i))}><i className="fas fa-trash"></i></button>
-                                        </div>
-                                    ))}
-                                    <button className="btn-start" disabled={isSubmittingBatch} onClick={guardarRegistroFinal} style={{width: '100%', justifyContent: 'center', background: isSubmittingBatch ? 'gray' : 'var(--accent)', color: '#000'}}>
-                                        {isSubmittingBatch ? 'Guardando en la Nube...' : <><i className="fas fa-cloud-upload-alt"></i> Subir Registros a Firebase</>}
-                                    </button>
-                                </div>
-                            )}
-                        </section>
+        {/* Formulario de Ingreso */}
+        <form onSubmit={agregarAListaLocal} style={{display: 'flex', flexDirection: 'column', gap: '15px', width: '100%', maxWidth: '400px', zIndex: 10, background: 'rgba(255,255,255,0.05)', padding: '20px', borderRadius: '15px', borderTop: `4px solid ${colorMap[liderLogueado.equipo]}`, backdropFilter: 'blur(10px)', flexShrink: 0}}>
+            <h3 style={{margin: 0, color: 'white', textAlign: 'center'}}>Añadir a la lista</h3>
+            
+            {showCamera ? (
+                <div className="camera-container">
+                    <video ref={videoRef} autoPlay playsInline className="camera-video" />
+                    <div className="camera-action-btns">
+                        <button type="button" className="btn-start" style={{margin: 0, padding: '8px 15px'}} onClick={capturePhoto}><i className="fas fa-camera"></i> Tomar</button>
+                        <button type="button" className="glass-btn" onClick={stopCamera}>Cancelar</button>
+                    </div>
+                    <canvas ref={canvasRef} style={{display: 'none'}} />
+                </div>
+            ) : (
+                <div style={{display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px'}}>
+                    {camperFotoPreview ? (
+                        <img src={camperFotoPreview} alt="Preview" style={{width: '100px', height: '100px', objectFit: 'cover', borderRadius: '50%', border: `3px solid ${colorMap[liderLogueado.equipo]}`}} />
+                    ) : (
+                        <div style={{width: '100px', height: '100px', borderRadius: '50%', border: '2px dashed gray', display: 'flex', alignItems: 'center', justifyContent: 'center'}}><i className="fas fa-user" style={{fontSize: '2rem', color: 'gray'}}></i></div>
                     )}
+                    
+                    <div className="camera-action-btns">
+                        <button type="button" className="glass-btn" onClick={startCamera}><i className="fas fa-camera"></i> Cámara</button>
+                        <label className="glass-btn" style={{cursor: 'pointer', margin: 0}}>
+                            <i className="fas fa-upload"></i> Subir
+                            <input type="file" accept="image/*" style={{display: 'none'}} onChange={(e) => { if(e.target.files[0]) { setCamperFotoObj(e.target.files[0]); setCamperFotoPreview(URL.createObjectURL(e.target.files[0])); } }} />
+                        </label>
+                    </div>
+                </div>
+            )}
+
+            <div style={{display: 'flex', gap: '10px', flexWrap: 'wrap'}}>
+                <input type="number" placeholder="N°" value={camperNum} onChange={(e) => setCamperNum(e.target.value)} style={{flex: '1 1 30%', minWidth: '80px', padding: '12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(0,0,0,0.5)', color: 'white', outline: 'none'}} />
+                <input type="number" placeholder="Edad" value={camperEdad} onChange={(e) => setCamperEdad(e.target.value)} style={{flex: '2 1 50%', minWidth: '100px', padding: '12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(0,0,0,0.5)', color: 'white', outline: 'none'}} />
+            </div>
+            <input type="text" placeholder="Nombre y Apellidos" value={camperNombre} onChange={(e) => setCamperNombre(e.target.value)} style={{padding: '12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(0,0,0,0.5)', color: 'white', outline: 'none'}} />
+            
+            <button type="submit" className="glass-btn" style={{borderColor: 'var(--accent)', color: 'var(--accent)'}}>
+                <i className="fas fa-plus"></i> Añadir a la lista
+            </button>
+        </form>
+
+        {/* Lista Pendiente y Botón de Subida */}
+        {localCampers.length > 0 && (
+            <div style={{width: '100%', maxWidth: '400px', zIndex: 10, marginTop: '20px', display: 'flex', flexDirection: 'column', flexShrink: 0}}>
+                <h3 style={{color: 'white', textAlign: 'center', marginBottom: '10px'}}>Lista Pendiente ({localCampers.length})</h3>
+                
+                {/* SCROLL INTERNO PARA LA LISTA (Mantiene el botón a la vista) */}
+                <div style={{maxHeight: '30vh', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '10px', paddingRight: '5px', marginBottom: '15px'}}>
+                    {localCampers.map((c, i) => (
+                        <div key={i} className="local-camper-item" style={{margin: 0}}>
+                            <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
+                                <img src={c.fotoPreview} style={{width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover'}} alt="" />
+                                <div><div style={{color: 'white', fontWeight: 'bold'}}>#{c.numero} {c.nombre}</div><div style={{color: 'gray', fontSize: '0.8rem'}}>{c.edad} años</div></div>
+                            </div>
+                            <button className="glass-btn" style={{padding: '5px 10px', color: '#e74c3c', borderColor: 'transparent'}} onClick={() => setLocalCampers(localCampers.filter((_, index) => index !== i))}><i className="fas fa-trash"></i></button>
+                        </div>
+                    ))}
+                </div>
+
+                <button className="btn-start" disabled={isSubmittingBatch} onClick={guardarRegistroFinal} style={{width: '100%', justifyContent: 'center', background: isSubmittingBatch ? 'gray' : 'var(--accent)', color: '#000'}}>
+                    {isSubmittingBatch ? 'Guardando en la Nube...' : <><i className="fas fa-cloud-upload-alt"></i> Subir Registros a Firebase</>}
+                </button>
+            </div>
+        )}
+    </section>
+)}
 
                     {/* EVALUACIÓN DE VERSO DEL LÍDER */}
                     {screen === 'lider-verso' && liderLogueado && (() => {
