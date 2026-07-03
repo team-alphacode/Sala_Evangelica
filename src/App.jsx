@@ -184,40 +184,58 @@ export default function App() {
     useEffect(() => {
         const fetchHymns = async () => {
             const cachedHymns = localStorage.getItem('hymnosCache');
-            if (cachedHymns) { setAllHymns(JSON.parse(cachedHymns)); }
+            if (cachedHymns) {
+                // ESCUDO 1: Previene que un caché corrupto rompa la app
+                try {
+                    setAllHymns(JSON.parse(cachedHymns));
+                } catch (e) {
+                    console.error("Caché corrupto, limpiando...");
+                    localStorage.removeItem('hymnosCache');
+                }
+            }
             try {
                 const q = query(collection(db, "himnos"), orderBy("numero"));
                 const snapshot = await getDocs(q);
                 const hymnsData = snapshot.docs.map(doc => ({ id_doc: doc.id, ...doc.data() }));
-                setAllHymns(hymnsData); localStorage.setItem('hymnosCache', JSON.stringify(hymnsData)); 
+                setAllHymns(hymnsData); 
+                localStorage.setItem('hymnosCache', JSON.stringify(hymnsData)); 
             } catch (error) { console.error("Error al cargar himnos:", error); }
         };
         const unsubscribeAuth = onAuthStateChanged(auth, (user) => { if (user) fetchHymns(); else signInAnonymously(auth).catch(console.error); });
         return () => unsubscribeAuth();
     }, []);
 
-    // ==========================================
-    // 2. ESCUCHADORES EN VIVO MÚLTIPLES
+ // ==========================================
+    // 2. ESCUCHADORES EN VIVO MÚLTIPLES (OPTIMIZADOS)
     // ==========================================
     useEffect(() => {
-        const unCamp = onSnapshot(collection(db, "campistas"), (s) => setCampistas(s.docs.map(d => ({ id: d.id, ...d.data() }))));
-        const unLid = onSnapshot(collection(db, "lideres"), (s) => setLideres(s.docs.map(d => ({ id: d.id, ...d.data() }))));
-        const unVerso = onSnapshot(collection(db, "eval_verso"), (s) => setEvaluacionesVerso(s.docs.map(d => ({ id: d.id, ...d.data() }))));
-        const unCoro = onSnapshot(collection(db, "eval_coro"), (s) => setEvaluacionesCoro(s.docs.map(d => ({ id: d.id, ...d.data() }))));
-        const unBest = onSnapshot(collection(db, "mejores_campistas"), (s) => setMejoresCampistas(s.docs.map(d => ({ id: d.id, ...d.data() }))));
-        const unAct = onSnapshot(doc(db, "campamento", "actividades"), (d) => { if (d.exists()) setActividades(d.data()); });
-        const unEsgPreg = onSnapshot(query(collection(db, "esgrima_preguntas"), orderBy("timestamp")), (s) => setEsgrimaPreguntasDB(s.docs.map(d => ({ id: d.id, ...d.data() }))));
-        const unEsgAct = onSnapshot(collection(db, "esgrima_actividades"), (s) => { let acts = {}; s.docs.forEach(d => acts[d.id] = d.data()); setEsgrimaActividadesDB(acts); });
-        const unEsgRes = onSnapshot(doc(db, "esgrima_resultados", "totales"), (d) => { if (d.exists()) setEsgrimaResultadosDB(d.data()); });
-        const unDinDB = onSnapshot(query(collection(db, "dinamicas_db"), orderBy("timestamp")), (s) => setDinamicasDB(s.docs.map(d => ({ id: d.id, ...d.data() }))));
-        const unDinRes = onSnapshot(collection(db, "dinamicas_resultados"), (s) => setDinamicasResultados(s.docs.map(d => ({ id: d.id, ...d.data() }))));
-        const unRescDB = onSnapshot(query(collection(db, "rescate_db"), orderBy("timestamp")), (s) => setRescateDB(s.docs.map(d => ({ id: d.id, ...d.data() }))));
-        const unRescRes = onSnapshot(collection(db, "rescate_resultados"), (s) => setRescateResultados(s.docs.map(d => ({ id: d.id, ...d.data() }))));
-        
-        const unSubLotes = onSnapshot(query(collection(db, "subasta_lotes"), orderBy("numero")), (s) => setSubastaLotesDB(s.docs.map(d => ({ id: d.id, ...d.data() }))));
-        const unSubRes = onSnapshot(collection(db, "subasta_resultados"), (s) => setSubastaResultadosDB(s.docs.map(d => ({ id: d.id, ...d.data() }))));
+        let unsubscribers = [];
 
-        return () => { unCamp(); unLid(); unVerso(); unCoro(); unBest(); unAct(); unEsgPreg(); unEsgAct(); unEsgRes(); unDinDB(); unDinRes(); unRescDB(); unRescRes(); unSubLotes(); unSubRes(); };
+        // ESCUDO 2: Retrasamos medio segundo la conexión masiva a Firebase
+        // para no colapsar el procesador de los celulares al recargar.
+        const iniciarConexion = setTimeout(() => {
+            unsubscribers.push(onSnapshot(collection(db, "campistas"), (s) => setCampistas(s.docs.map(d => ({ id: d.id, ...d.data() })))));
+            unsubscribers.push(onSnapshot(collection(db, "lideres"), (s) => setLideres(s.docs.map(d => ({ id: d.id, ...d.data() })))));
+            unsubscribers.push(onSnapshot(collection(db, "eval_verso"), (s) => setEvaluacionesVerso(s.docs.map(d => ({ id: d.id, ...d.data() })))));
+            unsubscribers.push(onSnapshot(collection(db, "eval_coro"), (s) => setEvaluacionesCoro(s.docs.map(d => ({ id: d.id, ...d.data() })))));
+            unsubscribers.push(onSnapshot(collection(db, "mejores_campistas"), (s) => setMejoresCampistas(s.docs.map(d => ({ id: d.id, ...d.data() })))));
+            unsubscribers.push(onSnapshot(doc(db, "campamento", "actividades"), (d) => { if (d.exists()) setActividades(d.data()); }));
+            unsubscribers.push(onSnapshot(query(collection(db, "esgrima_preguntas"), orderBy("timestamp")), (s) => setEsgrimaPreguntasDB(s.docs.map(d => ({ id: d.id, ...d.data() })))));
+            unsubscribers.push(onSnapshot(collection(db, "esgrima_actividades"), (s) => { let acts = {}; s.docs.forEach(d => acts[d.id] = d.data()); setEsgrimaActividadesDB(acts); }));
+            unsubscribers.push(onSnapshot(doc(db, "esgrima_resultados", "totales"), (d) => { if (d.exists()) setEsgrimaResultadosDB(d.data()); }));
+            unsubscribers.push(onSnapshot(query(collection(db, "dinamicas_db"), orderBy("timestamp")), (s) => setDinamicasDB(s.docs.map(d => ({ id: d.id, ...d.data() })))));
+            unsubscribers.push(onSnapshot(collection(db, "dinamicas_resultados"), (s) => setDinamicasResultados(s.docs.map(d => ({ id: d.id, ...d.data() })))));
+            unsubscribers.push(onSnapshot(query(collection(db, "rescate_db"), orderBy("timestamp")), (s) => setRescateDB(s.docs.map(d => ({ id: d.id, ...d.data() })))));
+            unsubscribers.push(onSnapshot(collection(db, "rescate_resultados"), (s) => setRescateResultados(s.docs.map(d => ({ id: d.id, ...d.data() })))));
+            unsubscribers.push(onSnapshot(query(collection(db, "subasta_lotes"), orderBy("numero")), (s) => setSubastaLotesDB(s.docs.map(d => ({ id: d.id, ...d.data() })))));
+            unsubscribers.push(onSnapshot(collection(db, "subasta_resultados"), (s) => setSubastaResultadosDB(s.docs.map(d => ({ id: d.id, ...d.data() })))));
+        }, 500);
+
+        // Limpieza de memoria súper segura (Evita errores si el usuario cierra rápido la app)
+        return () => {
+            clearTimeout(iniciarConexion);
+            unsubscribers.forEach(unsub => unsub());
+        };
     }, []);
 
     // ==========================================
