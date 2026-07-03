@@ -174,14 +174,15 @@ export default function App() {
     // ==========================================
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
-        const savedSession = localStorage.getItem('hymnSession');
+        // Usamos sessionStorage en lugar de localStorage para aislar pestañas
+        const savedSession = sessionStorage.getItem('hymnSession');
 
         if (params.get('modo') === 'lider') { 
             setRole('lider'); setRoleStep('ready'); setScreen('lider-login'); 
         } else if (params.get('modo') === 'juez') { 
             setRole('juez'); setRoleStep('ready'); setScreen('juez-coro'); 
         } else if (savedSession) {
-            // Restaurar la sesión si se recargó la página accidentalmente
+            // Restaurar la sesión privada de esta pestaña
             try {
                 const { code, savedRole } = JSON.parse(savedSession);
                 if (code && savedRole) {
@@ -195,7 +196,6 @@ export default function App() {
             }
         }
     }, []);
-
     // ==========================================
     // 1. AUTENTICACIÓN Y CARGA DE DATOS (HIMNOS)
     // ==========================================
@@ -526,115 +526,137 @@ export default function App() {
     };
 
         // ==========================================
-    // 9. FUNCIONES DEL HIMNARIO Y PROYECTOR (CONEXIÓN PERMANENTE)
-    // ==========================================
-    const handleConnect = async () => {
-        if (pinInput.length !== 4 || !/^[0-9]+$/.test(pinInput)) return showToast("El código debe tener 4 dígitos.");
-        setSessionCode(pinInput);
-        
-        // Guardar en la memoria del navegador para sobrevivir a las recargas
-        localStorage.setItem('hymnSession', JSON.stringify({ code: pinInput, savedRole: role }));
-
-        if (role === 'control') {
-            const docRef = doc(db, "sesiones", pinInput);
-            const docSnap = await getDoc(docRef);
+        // 9. FUNCIONES DEL HIMNARIO Y PROYECTOR (CONEXIÓN PERMANENTE)
+        // ==========================================
+        const handleConnect = async () => {
+            if (pinInput.length !== 4) return showToast("El código debe tener 4 dígitos.");
+            setSessionCode(pinInput);
             
-            if (!docSnap.exists()) {
-                // Sala nueva
-                await setDoc(docRef, { modo: 'standby', himnoId: null, slideIndex: 0, fontSize: 2.5, proyectorConectado: false, subastaLoteId: null, timerTarget: null });
-            } else {
-                // Si el control se reconecta, usamos merge: true para no desconectar al proyector
-                await setDoc(docRef, { modo: 'standby' }, { merge: true });
-            }
-            setRoleStep('ready'); setScreen('welcome');
-        } else if (role === 'proyector') {
-            const docSnap = await getDoc(doc(db, "sesiones", pinInput));
-            if (docSnap.exists()) {
-                await setDoc(doc(db, "sesiones", pinInput), { proyectorConectado: true }, { merge: true });
-                setRoleStep('ready'); setScreen('welcome');
-            } else { 
-                showToast("⚠️ Sala no encontrada. Conecta el Control primero."); 
-                setPinInput(''); 
-                localStorage.removeItem('hymnSession'); // Limpiar si falló
-            }
-        }
-    };
+            // Guardamos la sesión en sessionStorage para que no se mezcle con otras pestañas
+            sessionStorage.setItem('hymnSession', JSON.stringify({ code: pinInput, savedRole: role }));
 
-    // NUEVA FUNCIÓN: Salir de la sala voluntariamente
+            if (role === 'control') {
+                const docRef = doc(db, "sesiones", pinInput);
+                const docSnap = await getDoc(docRef);
+                
+                if (!docSnap.exists()) {
+                    await setDoc(docRef, { modo: 'standby', himnoId: null, slideIndex: 0, fontSize: 2.5, proyectorConectado: false, subastaLoteId: null, timerTarget: null });
+                } else {
+                    await setDoc(docRef, { modo: 'standby' }, { merge: true });
+                }
+                setRoleStep('ready'); setScreen('welcome');
+            } else if (role === 'proyector') {
+                const docSnap = await getDoc(doc(db, "sesiones", pinInput));
+                if (docSnap.exists()) {
+                    await setDoc(doc(db, "sesiones", pinInput), { proyectorConectado: true }, { merge: true });
+                    setRoleStep('ready'); setScreen('welcome');
+                } else { 
+                    showToast("⚠️ Sala no encontrada. Conecta el Control primero."); 
+                    setPinInput(''); 
+                    sessionStorage.removeItem('hymnSession'); // Limpiar si falló
+                }
+            }
+        };
+
     const handleDisconnect = async () => {
-        if (role === 'proyector' && sessionCode) {
-            await setDoc(doc(db, "sesiones", sessionCode), { proyectorConectado: false }, { merge: true });
+        try {
+            if (sessionCode) {
+                if (role === 'control') {
+                    // Si el control cierra la sala, eliminamos el documento de Firestore
+                    // para notificar al proyector en tiempo real que la sala dejó de existir.
+                    await deleteDoc(doc(db, "sesiones", sessionCode));
+                } else if (role === 'proyector') {
+                    // Si solo se sale el proyector, simplemente avisamos al control cambiando el estado
+                    await setDoc(doc(db, "sesiones", sessionCode), { proyectorConectado: false }, { merge: true });
+                }
+            }
+        } catch (error) {
+            console.error("Error al desconectar de la sala:", error);
         }
-        localStorage.removeItem('hymnSession');
+
+        // Limpiamos la memoria exclusiva de la pestaña actual
+        sessionStorage.removeItem('hymnSession');
         setSessionCode('');
         setRole(null);
         setRoleStep('select');
         setScreen('welcome');
         setPinInput('');
-        showToast("Desconectado de la sala exitosamente.");
-    };  
+        showToast(role === 'control' ? "Sala finalizada por completo." : "Proyector desconectado.");
+    };
 
     const emitirAProyector = async (modo, himnoId, index) => { if (role === 'control' && sessionCode) await setDoc(doc(db, "sesiones", sessionCode), { modo, himnoId, slideIndex: index }, { merge: true }); };
     const cambiarTamanoLetra = async (cambio, e) => { if (e) e.stopPropagation(); let nuevoTamano = Math.min(Math.max(fontSize + cambio, 1.5), 6.0); setFontSize(nuevoTamano); if (role === 'control' && sessionCode) await setDoc(doc(db, "sesiones", sessionCode), { fontSize: nuevoTamano }, { merge: true }); };
 
     useEffect(() => {
-        if (!sessionCode) return;
-        
-        let interval;
-        const unsub = onSnapshot(doc(db, "sesiones", sessionCode), (docSnap) => {
-            if (docSnap.exists()) {
-                const data = docSnap.data();
-                
-                if (role === 'proyector') {
-                    if (data.fontSize && data.fontSize !== fontSize) setFontSize(data.fontSize);
+            if (!sessionCode) return;
+            
+            let interval;
+            const unsub = onSnapshot(doc(db, "sesiones", sessionCode), (docSnap) => {
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
                     
-                    if (data.modo === 'standby') {
-                        setScreen('welcome');
-                        setTimerRemaining(null);
-                    }
-                    else if (data.modo === 'himno' && data.himnoId) {
-                        const targetHymn = allHymns.find(h => h.id_doc === data.himnoId);
-                        if (targetHymn) { cargarDiapositivasLocal(targetHymn); setSlideIndex(data.slideIndex); setScreen('viewer'); }
-                    }
-                    else if (data.modo === 'subasta-previa' || data.modo === 'subasta-activa') {
-                        const targetLote = subastaLotesDB.find(l => l.id === data.subastaLoteId);
-                        if (targetLote) {
-                            setSubastaActiveLot(targetLote);
-                            setScreen(data.modo); 
+                    if (role === 'proyector') {
+                        if (data.fontSize && data.fontSize !== fontSize) setFontSize(data.fontSize);
+                        
+                        if (data.modo === 'standby') {
+                            setScreen('welcome');
+                            setTimerRemaining(null);
+                        }
+                        else if (data.modo === 'himno' && data.himnoId) {
+                            const targetHymn = allHymns.find(h => h.id_doc === data.himnoId);
+                            if (targetHymn) { cargarDiapositivasLocal(targetHymn); setSlideIndex(data.slideIndex); setScreen('viewer'); }
+                        }
+                        else if (data.modo === 'subasta-previa' || data.modo === 'subasta-activa') {
+                            const targetLote = subastaLotesDB.find(l => l.id === data.subastaLoteId);
+                            if (targetLote) {
+                                setSubastaActiveLot(targetLote);
+                                setScreen(data.modo); 
 
-                            if (data.modo === 'subasta-activa' && data.timerTarget) {
-                                clearInterval(interval);
-                                interval = setInterval(() => {
-                                    const now = new Date().getTime();
-                                    const diff = Math.max(0, Math.floor((data.timerTarget - now) / 1000));
-                                    setTimerRemaining(diff);
+                                if (data.modo === 'subasta-activa' && data.timerTarget) {
+                                    clearInterval(interval);
+                                    interval = setInterval(() => {
+                                        const now = new Date().getTime();
+                                        const diff = Math.max(0, Math.floor((data.timerTarget - now) / 1000));
+                                        setTimerRemaining(diff);
 
-                                    if (diff > 0 && diff <= 10) {
-                                        if (tickAudioRef.current) {
-                                            tickAudioRef.current.currentTime = 0;
-                                            tickAudioRef.current.play().catch(e => console.log('Audio autoplay blocked', e));
+                                        if (diff > 0 && diff <= 10) {
+                                            if (tickAudioRef.current) {
+                                                tickAudioRef.current.currentTime = 0;
+                                                tickAudioRef.current.play().catch(e => console.log('Audio autoplay blocked', e));
+                                            }
+                                        } else if (diff === 0) {
+                                            clearInterval(interval);
+                                            if (alarmAudioRef.current) {
+                                                alarmAudioRef.current.currentTime = 0;
+                                                alarmAudioRef.current.play().catch(e => console.log('Audio autoplay blocked', e));
+                                            }
                                         }
-                                    } else if (diff === 0) {
-                                        clearInterval(interval);
-                                        if (alarmAudioRef.current) {
-                                            alarmAudioRef.current.currentTime = 0;
-                                            alarmAudioRef.current.play().catch(e => console.log('Audio autoplay blocked', e));
-                                        }
-                                    }
-                                }, 1000);
-                            } else {
-                                setTimerRemaining(null);
-                                clearInterval(interval);
+                                    }, 1000);
+                                } else {
+                                    setTimerRemaining(null);
+                                    clearInterval(interval);
+                                }
                             }
                         }
+                    } else if (role === 'control') {
+                        setProyectorConectado(!!data.proyectorConectado);
                     }
-                } else if (role === 'control') {
-                    setProyectorConectado(!!data.proyectorConectado);
+                } else {
+                    // ========================================================
+                    // ESCUDO NUEVO: Si la sala NO existe (borrada por el control)
+                    // ========================================================
+                    if (role === 'proyector') {
+                        sessionStorage.removeItem('hymnSession');
+                        setSessionCode('');
+                        setRole(null);
+                        setRoleStep('select');
+                        setScreen('welcome');
+                        setPinInput('');
+                    }
                 }
-            }
-        });
-        return () => { unsub(); clearInterval(interval); };
-    }, [role, sessionCode, allHymns, fontSize, subastaLotesDB]);
+            });
+            return () => { unsub(); clearInterval(interval); };
+        }, [role, sessionCode, allHymns, fontSize, subastaLotesDB]);
 
     const cargarDiapositivasLocal = (hymn) => {
         setCurrentHymn(hymn); let newSlides = [];
@@ -1128,13 +1150,14 @@ export default function App() {
                 <section className="screen" id="welcome-screen" style={{ flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'var(--dark-bg)', textAlign: 'center' }}>
                     <div className="particles"></div>
                     
-                    {screen === 'welcome' && (
+                   {screen === 'welcome' && (
                         <div className="hero-content">
                             <div className="logo-container"><img src="/logo.png" alt="Logo" className="logo-img" /></div>
                             <div className="verse-box hide-on-mobile"><span>{verseText}</span><span className="cursor"></span></div>
                             <div style={{ marginTop: '10px' }}><h1 className="main-title">Mini Campamento<br /><span style={{ color: 'var(--accent)' }}>2026</span></h1></div>
                             
-                            {role === 'control' ? (
+                            {/* LOS BOTONES SOLO SE RENDERIZAN SI EL ROL ES 'CONTROL' */}
+                            {role === 'control' && (
                                 <div style={{ display: 'flex', gap: '15px', marginTop: '20px', flexWrap: 'wrap', justifyContent: 'center' }}>
                                     <button className="btn-start" onClick={() => setScreen('menu')}><i className="fas fa-music"></i> Himnario</button>
                                     <button className="btn-start" onClick={() => isAdminLogged ? setScreen('camp-admin') : setScreen('admin-login')}><i className="fas fa-campground"></i> Campamento</button>
@@ -1146,14 +1169,7 @@ export default function App() {
                                         </button>
                                     </div>
                                 </div>
-                            ) : role === 'proyector' ? (
-                                <div style={{ display: 'flex', gap: '15px', marginTop: '20px', flexWrap: 'wrap', justifyContent: 'center' }}>
-                                    {/* BOTÓN PARA CERRAR SESIÓN DEL PROYECTOR */}
-                                    <button className="glass-btn" onClick={handleDisconnect} style={{color: '#e74c3c', borderColor: '#e74c3c', padding: '10px 20px', fontSize: '1rem'}}>
-                                        <i className="fas fa-sign-out-alt"></i> Desconectar Proyector
-                                    </button>
-                                </div>
-                            ) : null}
+                            )}
                         </div>
                     )}
 
