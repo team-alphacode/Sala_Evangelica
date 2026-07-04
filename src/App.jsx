@@ -374,8 +374,39 @@ export default function App() {
     // ==========================================
     // 6. FUNCIONES DEL LÍDER (REGISTRO, VERSO, MEJORES)
     // ==========================================
-    const agregarAListaLocal = (e) => { e.preventDefault(); if (!camperNum || !camperNombre || !camperEdad || !camperFotoObj) return showToast("Completa todos los campos y la foto."); setLocalCampers([...localCampers, { numero: camperNum, nombre: camperNombre, edad: camperEdad, fotoObj: camperFotoObj, fotoPreview: camperFotoPreview }]); setCamperNum(''); setCamperNombre(''); setCamperEdad(''); setCamperFotoObj(null); setCamperFotoPreview(null); showToast(`Campista #${camperNum} añadido a la lista.`); };
-    const guardarRegistroFinal = async () => { if (localCampers.length === 0) return showToast("La lista está vacía."); setIsSubmittingBatch(true); showToast("Subiendo registros a la nube..."); try { for (let c of localCampers) { const fotoRef = ref(storage, `campistas_fotos/${Date.now()}_${c.fotoObj.name}`); await uploadBytes(fotoRef, c.fotoObj); const url = await getDownloadURL(fotoRef); await addDoc(collection(db, "campistas"), { numero: c.numero, nombre: c.nombre, edad: parseInt(c.edad), equipo: liderLogueado.equipo, liderId: liderLogueado.id, fotoUrl: url, fecha: new Date().toISOString() }); } showToast(`¡${localCampers.length} campistas guardados exitosamente!`); setLocalCampers([]); } catch (error) { showToast("Hubo un error al guardar los registros."); } finally { setIsSubmittingBatch(false); } };
+    const agregarAListaLocal = (e) => { 
+        e.preventDefault(); 
+        if (!camperNum || !camperNombre || !camperEdad) return showToast("Completa todos los campos."); 
+        setLocalCampers([...localCampers, { numero: camperNum, nombre: camperNombre, edad: camperEdad }]); 
+        setCamperNum(''); 
+        setCamperNombre(''); 
+        setCamperEdad(''); 
+        showToast(`Campista #${camperNum} añadido a la lista.`); 
+    };
+
+    const guardarRegistroFinal = async () => { 
+        if (localCampers.length === 0) return showToast("La lista está vacía."); 
+        setIsSubmittingBatch(true); 
+        showToast("Subiendo registros a la nube..."); 
+        try { 
+            for (let c of localCampers) { 
+                await addDoc(collection(db, "campistas"), { 
+                    numero: c.numero, 
+                    nombre: c.nombre, 
+                    edad: parseInt(c.edad), 
+                    equipo: liderLogueado.equipo, 
+                    liderId: liderLogueado.id, 
+                    fecha: new Date().toISOString() 
+                }); 
+            } 
+            showToast(`¡${localCampers.length} campistas guardados exitosamente!`); 
+            setLocalCampers([]); 
+        } catch (error) { 
+            showToast("Hubo un error al guardar los registros."); 
+        } finally { 
+            setIsSubmittingBatch(false); 
+        } 
+    };
     const handleVerseScoreChange = (campistaId, value) => { let num = parseInt(value); if (isNaN(num)) num = ''; if (num > 10) num = 10; setVerseScores({...verseScores, [campistaId]: num}); };
     const guardarEvaluacionVerso = async (targetTeam) => { setIsSubmittingVerso(true); showToast("Guardando notas del verso..."); try { await setDoc(doc(db, "eval_verso", targetTeam), { scores: verseScores, evaluadorId: liderLogueado.id, fecha: new Date().toISOString() }); await setDoc(doc(db, "campamento", "actividades"), { 'eval-verso': { [liderLogueado.equipo]: 'completado' } }, { merge: true }); showToast("¡Evaluación guardada exitosamente!"); setScreen('lider-dashboard'); } catch (error) { showToast("Error al guardar la evaluación."); } finally { setIsSubmittingVerso(false); } };
     const guardarMejorCampista = async () => { if (!selectedBestCamper) return showToast("Debes seleccionar a un campista primero."); setIsSubmittingBest(true); showToast("Guardando al mejor campista..."); try { await setDoc(doc(db, "mejores_campistas", liderLogueado.equipo), { campistaId: selectedBestCamper.id || "", nombre: selectedBestCamper.nombre || "Desconocido", fotoUrl: selectedBestCamper.fotoUrl || "", numero: selectedBestCamper.numero || "", liderId: liderLogueado.id || "", fecha: new Date().toISOString() }); await setDoc(doc(db, "campamento", "actividades"), { 'mejores': { [liderLogueado.equipo]: 'completado' } }, { merge: true }); showToast("¡Mejor campista guardado exitosamente!"); setScreen('lider-dashboard'); } catch (error) { console.error(error); showToast("Error al guardar."); } finally { setIsSubmittingBest(false); } };
@@ -1024,36 +1055,10 @@ export default function App() {
         </div>
 
         {/* Formulario de Ingreso */}
+        {/* Formulario de Ingreso */}
         <form onSubmit={agregarAListaLocal} style={{display: 'flex', flexDirection: 'column', gap: '15px', width: '100%', maxWidth: '400px', zIndex: 10, background: 'rgba(255,255,255,0.05)', padding: '20px', borderRadius: '15px', borderTop: `4px solid ${colorMap[liderLogueado.equipo]}`, flexShrink: 0}}>
             <h3 style={{margin: 0, color: 'white', textAlign: 'center'}}>Añadir a la lista</h3>
             
-            {showCamera ? (
-                <div className="camera-container">
-                    <video ref={videoRef} autoPlay playsInline className="camera-video" />
-                    <div className="camera-action-btns">
-                        <button type="button" className="btn-start" style={{margin: 0, padding: '8px 15px'}} onClick={capturePhoto}><i className="fas fa-camera"></i> Tomar</button>
-                        <button type="button" className="glass-btn" onClick={stopCamera}>Cancelar</button>
-                    </div>
-                    <canvas ref={canvasRef} style={{display: 'none'}} />
-                </div>
-            ) : (
-                <div style={{display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px'}}>
-                    {camperFotoPreview ? (
-                        <img src={camperFotoPreview} alt="Preview" style={{width: '100px', height: '100px', objectFit: 'cover', borderRadius: '50%', border: `3px solid ${colorMap[liderLogueado.equipo]}`}} />
-                    ) : (
-                        <div style={{width: '100px', height: '100px', borderRadius: '50%', border: '2px dashed gray', display: 'flex', alignItems: 'center', justifyContent: 'center'}}><i className="fas fa-user" style={{fontSize: '2rem', color: 'gray'}}></i></div>
-                    )}
-                    
-                    <div className="camera-action-btns">
-                        <button type="button" className="glass-btn" onClick={startCamera}><i className="fas fa-camera"></i> Cámara</button>
-                        <label className="glass-btn" style={{cursor: 'pointer', margin: 0}}>
-                            <i className="fas fa-upload"></i> Subir
-                            <input type="file" accept="image/*" style={{display: 'none'}} onChange={(e) => { if(e.target.files[0]) { setCamperFotoObj(e.target.files[0]); setCamperFotoPreview(URL.createObjectURL(e.target.files[0])); } }} />
-                        </label>
-                    </div>
-                </div>
-            )}
-
             <div style={{display: 'flex', gap: '10px', flexWrap: 'wrap'}}>
                 <input type="number" placeholder="N°" value={camperNum} onChange={(e) => setCamperNum(e.target.value)} style={{flex: '1 1 30%', minWidth: '80px', padding: '12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(0,0,0,0.5)', color: 'white', outline: 'none'}} />
                 <input type="number" placeholder="Edad" value={camperEdad} onChange={(e) => setCamperEdad(e.target.value)} style={{flex: '2 1 50%', minWidth: '100px', padding: '12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(0,0,0,0.5)', color: 'white', outline: 'none'}} />
@@ -1075,7 +1080,9 @@ export default function App() {
                     {localCampers.map((c, i) => (
                         <div key={i} className="local-camper-item" style={{margin: 0}}>
                             <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
-                                <img src={c.fotoPreview} style={{width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover'}} alt="" />
+                                <div style={{width: '35px', height: '35px', borderRadius: '50%', background: 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
+    <i className="fas fa-user" style={{color: colorMap[liderLogueado.equipo]}}></i>
+</div>
                                 <div><div style={{color: 'white', fontWeight: 'bold'}}>#{c.numero} {c.nombre}</div><div style={{color: 'gray', fontSize: '0.8rem'}}>{c.edad} años</div></div>
                             </div>
                             <button className="glass-btn" style={{padding: '5px 10px', color: '#e74c3c', borderColor: 'transparent'}} onClick={() => setLocalCampers(localCampers.filter((_, index) => index !== i))}><i className="fas fa-trash"></i></button>
