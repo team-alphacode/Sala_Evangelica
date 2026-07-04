@@ -30,6 +30,8 @@ export default function App() {
     // ESTADOS GENERALES Y DEL HIMNARIO
     // ==========================================
     const [activeBook, setActiveBook] = useState('evangelio'); 
+    // NUEVO ESTADO: Pantalla de carga inicial
+    const [isAppReady, setIsAppReady] = useState(false);
     const [activeCampModule, setActiveCampModule] = useState('dashboard'); 
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false); // NUEVO: Estado para menú móvil
     const [roleStep, setRoleStep] = useState('select'); 
@@ -168,6 +170,15 @@ export default function App() {
 
     const showToast = (msg) => { setToastMsg(msg); setTimeout(() => setToastMsg(''), 3500); };
     const openLinkModal = (url, title) => { setModalUrl(url); setModalTitle(title); setShowLinkModal(true); };
+
+    // TEMPORIZADOR DE CARGA DE SEGURIDAD
+    useEffect(() => {
+        // Le damos 1 segundo al celular para estabilizarse antes de mostrar la app
+        const timer = setTimeout(() => {
+            setIsAppReady(true);
+        }, 1000); 
+        return () => clearTimeout(timer);
+    }, []);
 
    // ==========================================
     // INICIO: DETECCIÓN DE URL Y RECUPERACIÓN DE SESIÓN
@@ -723,7 +734,24 @@ export default function App() {
     // ==========================================
     // RENDERIZADO PRINCIPAL
     // ==========================================
-
+    // ==========================================
+    // RENDERIZADO PRINCIPAL
+    // ==========================================
+    
+    // PANTALLA DE CARGA Y PROTECCIÓN
+    if (!isAppReady) {
+        return (
+            <div style={{display: 'flex', flexDirection: 'column', height: '100vh', justifyContent: 'center', alignItems: 'center', background: 'var(--dark-bg)'}}>
+                {/* Animación de giro por CSS (spinner) */}
+                <div style={{width: '60px', height: '60px', border: '5px solid rgba(255,215,0,0.2)', borderTop: '5px solid var(--accent)', borderRadius: '50%', animation: 'spin 1s linear infinite'}}></div>
+                <h2 style={{color: 'var(--accent)', marginTop: '25px', letterSpacing: '2px'}}>PREPARANDO SALA...</h2>
+                <p style={{color: 'var(--text-muted)', fontSize: '0.9rem'}}>Optimizando recursos</p>
+                {/* Inyectamos los keyframes para que gire */}
+                <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
+            </div>
+        );
+    }
+    
     if (roleStep !== 'ready') {
         return (
             <section className="screen" style={{ flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'var(--dark-bg)' }}>
@@ -811,7 +839,7 @@ export default function App() {
                     <img src="/logo.png" alt="Logo" className="logo-container" style={{animation: 'float 6s ease-in-out infinite', width: '150px', height: '150px'}} />
                     <h1 className="main-title" style={{fontSize: '2.5rem', textAlign: 'center', marginBottom: '30px'}}>Administrador</h1>
                     
-                    <form onSubmit={handleAdminLogin} style={{background: 'rgba(0, 43, 85, 0.6)', padding: '40px', borderRadius: '15px', backdropFilter: 'blur(10px)', zIndex: 10, width: '90%', maxWidth: '400px', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 10px 30px rgba(0,0,0,0.5)', display: 'flex', flexDirection: 'column', gap: '20px'}}>
+                    <form onSubmit={handleAdminLogin} style={{background: 'rgba(0, 43, 85, 0.6)', padding: '40px', borderRadius: '15px', zIndex: 10, width: '90%', maxWidth: '400px', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 10px 30px rgba(0,0,0,0.5)', display: 'flex', flexDirection: 'column', gap: '20px'}}>
                         <input type="email" placeholder="Correo electrónico" required value={adminEmail} onChange={(e) => setAdminEmail(e.target.value)} style={{padding: '15px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(0,0,0,0.5)', color: 'white', outline: 'none', fontSize: '1rem'}} />
                         <input type="password" placeholder="Contraseña" required value={adminPassword} onChange={(e) => setAdminPassword(e.target.value)} style={{padding: '15px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(0,0,0,0.5)', color: 'white', outline: 'none', fontSize: '1rem'}} />
                         
@@ -833,7 +861,7 @@ export default function App() {
                     <div className="particles"></div>
                     <img src="/logo.png" alt="Logo" style={{width: '80px', height: '80px', borderRadius: '50%', marginBottom: '15px', zIndex: 10}} />
                     
-                    <div style={{background: 'rgba(0, 43, 85, 0.6)', padding: '25px', borderRadius: '15px', backdropFilter: 'blur(10px)', zIndex: 10, width: '100%', maxWidth: '500px', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 10px 30px rgba(0,0,0,0.5)'}}>
+                    <div style={{background: 'rgba(0, 43, 85, 0.6)', padding: '25px', borderRadius: '15px', zIndex: 10, width: '100%', maxWidth: '500px', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 10px 30px rgba(0,0,0,0.5)'}}>
                         {juezSubmitted ? (
                             <div style={{textAlign: 'center', padding: '30px 0', animation: 'fadeIn 0.5s ease-out'}}>
                                 <i className="fas fa-check-circle" style={{fontSize: '5rem', color: '#2ecc71', marginBottom: '20px'}}></i>
@@ -917,7 +945,7 @@ export default function App() {
                             <img src="/logo.png" alt="Logo" style={{width: '100px', height: '100px', borderRadius: '50%', marginBottom: '15px', zIndex: 10}} />
                             <h1 className="main-title" style={{fontSize: '2.5rem', textAlign: 'center'}}>Acceso a Líderes</h1>
                             
-                            <div style={{background: 'rgba(0, 43, 85, 0.6)', padding: '30px', borderRadius: '15px', backdropFilter: 'blur(10px)', zIndex: 10, width: '90%', maxWidth: '400px', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 10px 30px rgba(0,0,0,0.5)'}}>
+                            <div style={{background: 'rgba(0, 43, 85, 0.6)', padding: '30px', borderRadius: '15px',  zIndex: 10, width: '90%', maxWidth: '400px', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 10px 30px rgba(0,0,0,0.5)'}}>
                                 <p style={{textAlign: 'center', color: 'var(--text-muted)'}}>Selecciona tu perfil para ingresar:</p>
                                 {lideres.length === 0 ? <p style={{color: 'var(--accent)', textAlign: 'center'}}>Aún no hay líderes registrados.</p> : (
                                     <div style={{display: 'flex', flexDirection: 'column', gap: '15px'}}>
@@ -996,7 +1024,7 @@ export default function App() {
         </div>
 
         {/* Formulario de Ingreso */}
-        <form onSubmit={agregarAListaLocal} style={{display: 'flex', flexDirection: 'column', gap: '15px', width: '100%', maxWidth: '400px', zIndex: 10, background: 'rgba(255,255,255,0.05)', padding: '20px', borderRadius: '15px', borderTop: `4px solid ${colorMap[liderLogueado.equipo]}`, backdropFilter: 'blur(10px)', flexShrink: 0}}>
+        <form onSubmit={agregarAListaLocal} style={{display: 'flex', flexDirection: 'column', gap: '15px', width: '100%', maxWidth: '400px', zIndex: 10, background: 'rgba(255,255,255,0.05)', padding: '20px', borderRadius: '15px', borderTop: `4px solid ${colorMap[liderLogueado.equipo]}`, flexShrink: 0}}>
             <h3 style={{margin: 0, color: 'white', textAlign: 'center'}}>Añadir a la lista</h3>
             
             {showCamera ? (
