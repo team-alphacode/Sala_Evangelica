@@ -606,6 +606,16 @@ export default function App() {
                             const targetHymn = allHymns.find(h => h.id_doc === data.himnoId);
                             if (targetHymn) { cargarDiapositivasLocal(targetHymn); setSlideIndex(data.slideIndex); setScreen('viewer'); }
                         }
+                        // ========================================================
+                    // NUEVO ESCUDO: Capturar y reproducir el video en el proyector
+                    // ========================================================
+                    else if (data.modo === 'video' && data.videoTrackId) {
+                        const targetVideo = specialTracks.find(t => t.title === data.videoTrackId);
+                        if (targetVideo) { 
+                            setCurrentVideo(targetVideo); 
+                            setScreen('video-player'); 
+                        }
+                    }
                         else if (data.modo === 'subasta-previa' || data.modo === 'subasta-activa') {
                             const targetLote = subastaLotesDB.find(l => l.id === data.subastaLoteId);
                             if (targetLote) {
@@ -681,7 +691,34 @@ export default function App() {
         }
     };
     const showVideoList = (tracks, title) => { setVideoTitle(title); setActiveVideoList(tracks); setScreen('videos'); };
-    const playVideo = (track) => { setCurrentVideo(track); setScreen('video-player'); };
+    // ==========================================
+    // FUNCIONES DE REPRODUCCIÓN DE COROS (VIDEOS)
+    // ==========================================
+    const playVideo = async (track) => { 
+        setCurrentVideo(track); 
+        setScreen('video-player'); 
+        
+        // Emitir el modo video y el identificador al proyector
+        if (role === 'control' && sessionCode) {
+            await setDoc(doc(db, "sesiones", sessionCode), { 
+                modo: 'video', 
+                videoTrackId: track.title 
+            }, { merge: true });
+        }
+    };
+
+    const salirDeVideo = async () => {
+        setScreen('videos');
+        setCurrentVideo(null);
+        
+        // Ordenar al proyector que regrese a la pantalla de bienvenida
+        if (role === 'control' && sessionCode) {
+            await setDoc(doc(db, "sesiones", sessionCode), { 
+                modo: 'standby', 
+                videoTrackId: null 
+            }, { merge: true });
+        }
+    };
 
     // ==========================================
     // RENDERIZADO PRINCIPAL
@@ -2424,14 +2461,22 @@ export default function App() {
                 </section>
             )}
 
-            {screen === 'video-player' && currentVideo && role === 'control' && (
+            {/* PANTALLA DE VIDEO COMPARTIDA (CONTROL Y PROYECTOR) */}
+            {screen === 'video-player' && currentVideo && (
                 <section className="screen" id="video-screen">
                     <div className="particles"></div>
-                    <button className="glass-btn video-back-btn" onClick={() => setScreen('videos')}><i className="fas fa-arrow-left"></i> Volver</button>
+                    
+                    {/* El botón Volver solo es visible para el celular de Control */}
+                    {role === 'control' && (
+                        <button className="glass-btn video-back-btn" onClick={salirDeVideo}><i className="fas fa-arrow-left"></i> Volver</button>
+                    )}
+                    
                     <div className="video-wrapper">
                         <video controls autoPlay controlsList="nodownload" src={currentVideo.file}>Tu navegador no soporta videos.</video>
                     </div>
-                    <div className="video-footer">"Todo lo hizo Dios"</div>
+                    
+                    {/* Lema corregido con éxito para todo el sistema */}
+                    <div className="video-footer">"Primero Dios"</div>
                 </section>
             )}
         </>
